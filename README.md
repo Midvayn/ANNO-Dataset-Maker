@@ -4,9 +4,9 @@ ANNO Dataset Maker is a small local web tool for preparing AI image datasets. It
 
 ## Screenshots
 
-![ANNO Dataset Maker UI](screen1.png)
+![ANNO Dataset Maker UI](screen1.jpeg)
 
-![Heatmap preview](screen2.png)
+![Heatmap preview](screen2.jpeg)
 
 ## Features
 
