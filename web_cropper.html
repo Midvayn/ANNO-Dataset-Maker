@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ANNO Dataset Maker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <style>
+        
+        body { background: #121212; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        
+        #side { width: 320px; padding: 15px; border-right: 1px solid #333; display: flex; flex-direction: column; gap: 12px; background: #1e1e1e; z-index: 20; overflow-y: auto; box-shadow: 2px 0 10px rgba(0,0,0,0.5); }
+        
+        
+        #view { flex: 1; background: #000; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+        img { max-width: 100%; display: block; }
+        
+        
+        .btn { border: none; padding: 12px; cursor: pointer; font-weight: bold; border-radius: 6px; transition: 0.2s; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; width: 100%; }
+        .btn:active { transform: scale(0.98); }
+        #folderBtn { background: #1976d2; color: white; }
+        #folderBtn:hover { background: #1565c0; }
+        #saveBtn { background: #2e7d32; color: white; margin-top: 5px; font-size: 15px; padding: 15px; }
+        #saveBtn:hover { background: #388e3c; }
+        #saveBtn:disabled { background: #333; color: #555; cursor: not-allowed; transform: none; }
+        #resetBtn { background: #c62828; color: white; font-size: 11px; padding: 8px; margin-top: 5px; }
+
+        
+        input[type="text"], input[type="number"], textarea { 
+            background: #2c2c2c; color: #fff; border: 1px solid #444; padding: 8px; width: 100%; box-sizing: border-box; border-radius: 4px; font-family: monospace;
+        }
+        input:focus, textarea:focus { border-color: #2ecc71; outline: none; }
+        textarea { height: 70px; resize: vertical; font-size: 12px; line-height: 1.4; }
+
+        
+        .slider-row { margin-bottom: 5px; background: #252525; padding: 8px; border-radius: 5px; border: 1px solid #333; }
+        .slider-header { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 12px; color: #aaa; }
+        .val-badge { color: #2ecc71; font-weight: bold; }
+        input[type="range"] { -webkit-appearance: none; width: 100%; height: 4px; background: #444; border-radius: 2px; outline: none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: #2ecc71; border-radius: 50%; cursor: pointer; border: 2px solid #1e1e1e; }
+
+        
+        .cropper-view-box { outline: 2px solid #39f !important; outline-color: rgba(51, 153, 255, 0.8) !important; }
+        .cropper-line { background-color: #39f !important; }
+        .cropper-point { background-color: #39f !important; width: 6px !important; height: 6px !important; opacity: 1 !important; }
+        
+        
+        .cropper-view-box img { 
+            filter: url(#svg-sharpen) var(--br) var(--ct); 
+            transition: filter 0.1s;
+        }
+        
+        
+        #stat { color: #888; font-size: 11px; margin-top: auto; padding-top: 10px; border-top: 1px solid #333; text-align: center; }
+        .folder-path { font-size: 11px; color: #2ecc71; word-break: break-all; margin-bottom: 10px; font-family: monospace; background: #000; padding: 5px; border-radius: 4px; }
+        hr { width: 100%; border: 0; border-top: 1px solid #333; margin: 10px 0; }
+        
+        .header-title { margin: 0; color: #2ecc71; font-size: 18px; display: flex; align-items: center; gap: 10px; }
+        .file-input-label { display: block; margin-bottom: 5px; background: #333; padding: 10px; text-align: center; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; transition: 0.2s; }
+        .file-input-label:hover { background: #444; }
+    </style>
+</head>
+<body>
+
+    <svg width="0" height="0" style="position:absolute">
+        <filter id="svg-sharpen">
+            <feConvolveMatrix id="matrix" order="3" preserveAlpha="true" kernelMatrix="0 0 0 0 1 0 0 0 0" />
+        </filter>
+    </svg>
+
+    <div id="side">
+        <h3 class="header-title">⚡ ANNO Dataset Maker 7.0</h3>
+        
+        <label class="file-input-label">
+            1. SELECT FILES
+            <input type="file" id="loader" multiple accept="image/*" style="display:none">
+        </label>
+        
+        <button id="folderBtn" class="btn">2. SELECT FOLDER</button>
+        <div id="folderDisplay" class="folder-path">No folder selected</div>
+
+        <div style="display:flex; gap:10px;">
+            <div style="flex:1">
+                <span style="font-size:11px; color:#888;">Prefix</span>
+                <input type="text" id="prefix" placeholder="img_">
+            </div>
+            <div style="flex:1">
+                <span style="font-size:11px; color:#888;">Counter</span>
+                <input type="number" id="counter" value="1">
+            </div>
+        </div>
+        
+        <div style="display:flex; gap:10px; margin-top:5px;">
+            <div style="flex:1"><span style="font-size:11px; color:#888;">W</span><input type="number" id="tw" value="512"></div>
+            <div style="flex:1"><span style="font-size:11px; color:#888;">H</span><input type="number" id="th" value="512"></div>
+        </div>
+
+        <hr>
+        
+        <div class="slider-row">
+            <div class="slider-header"><span>Sharpen (Sharpen)</span> <span class="val-badge" id="v-sh">0</span></div>
+            <input type="range" id="sharp" min="0" max="100" value="0">
+        </div>
+
+        <div class="slider-row">
+            <div class="slider-header"><span>Brightness</span> <span class="val-badge" id="v-br">100</span></div>
+            <input type="range" id="bright" min="50" max="150" value="100">
+        </div>
+
+        <div class="slider-row">
+            <div class="slider-header"><span>Contrast</span> <span class="val-badge" id="v-ct">100</span></div>
+            <input type="range" id="contrast" min="50" max="150" value="100">
+        </div>
+
+        <button id="resetBtn" class="btn" onclick="resetFilters()">RESET FILTERS</button>
+
+        <hr>
+
+        <span style="font-size:12px; color:#aaa;">Tags (empty field skips txt creation):</span>
+        <textarea id="tags" placeholder="Example: 1girl, close up, police uniform..."></textarea>
+
+        <button id="saveBtn" class="btn" disabled>SAVE (Space)</button>
+        
+        <div id="stat">Waiting...</div>
+    </div>
+
+    <div id="view"><img id="target"></div>
+
+    <script>
+        let files = [], idx = 0, cropper, dirHandle = null;
+        const loader = document.getElementById('loader'), target = document.getElementById('target');
+        const saveBtn = document.getElementById('saveBtn'), stat = document.getElementById('stat');
+        const folderBtn = document.getElementById('folderBtn'), folderDisplay = document.getElementById('folderDisplay');
+        const matrix = document.getElementById('matrix'), view = document.getElementById('view');
+
+        const sSharp = document.getElementById('sharp');
+        const sBright = document.getElementById('bright');
+        const sContrast = document.getElementById('contrast');
+
+        folderBtn.onclick = async () => {
+            try {
+                dirHandle = await window.showDirectoryPicker();
+                folderDisplay.innerText = `📁 ${dirHandle.name}`;
+                folderDisplay.style.color = "#4caf50";
+                if (files.length) saveBtn.disabled = false;
+            } catch (e) {
+                console.log("Folder selection canceled");
+            }
+        };
+
+        function resetFilters() {
+            sSharp.value = 0; sBright.value = 100; sContrast.value = 100;
+            updateFilters();
+        }
+
+        function updateFilters() {
+            const sh = parseInt(sSharp.value);
+            const br = parseInt(sBright.value);
+            const ct = parseInt(sContrast.value);
+
+            document.getElementById('v-sh').innerText = sh;
+            document.getElementById('v-br').innerText = br;
+            document.getElementById('v-ct').innerText = ct;
+
+            view.style.setProperty('--br', `brightness(${br}%)`);
+            view.style.setProperty('--ct', `contrast(${ct}%)`);
+
+            const strength = sh / 100; // 0.0 to 1.0
+            const center = 1 + 4 * strength;
+            const edge = -strength;
+            matrix.setAttribute("kernelMatrix", `0 ${edge} 0 ${edge} ${center} ${edge} 0 ${edge} 0`);
+        }
+
+        [sSharp, sBright, sContrast].forEach(s => s.oninput = updateFilters);
+
+        loader.onchange = (e) => {
+            files = Array.from(e.target.files);
+            idx = 0;
+            if(files.length) { 
+                init(); 
+                if(dirHandle) saveBtn.disabled = false; 
+            }
+        };
+
+        function init() {
+            if(idx >= files.length) { 
+                stat.innerText = "ALL FILES PROCESSED!";
+                stat.style.color = "#2ecc71";
+                saveBtn.disabled = true; 
+                target.src = "";
+                if(cropper) cropper.destroy();
+                return; 
+            }
+            
+            stat.innerText = `Processing: ${idx + 1} / ${files.length}`;
+            stat.style.color = "#888";
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                target.src = e.target.result;
+                
+                if(cropper) cropper.destroy();
+                
+                cropper = new Cropper(target, {
+                    aspectRatio: document.getElementById('tw').value / document.getElementById('th').value,
+                    viewMode: 1, 
+                    autoCropArea: 0.9, 
+                    dragMode: 'move', 
+                    guides: true,
+                    center: true,
+                    background: false,
+                    ready() { 
+                        updateFilters(); 
+                    }
+                });
+            };
+            reader.readAsDataURL(files[idx]);
+        }
+
+        async function doCrop() {
+            if (!dirHandle) { alert("Select an output folder first (button 2)!"); return; }
+
+            const tw = parseInt(document.getElementById('tw').value);
+            const th = parseInt(document.getElementById('th').value);
+
+            let canvas = cropper.getCroppedCanvas({ 
+                width: tw, 
+                height: th, 
+                imageSmoothingQuality: 'high' 
+            });
+            
+            const finalCanvas = document.createElement('canvas');
+            finalCanvas.width = tw; finalCanvas.height = th;
+            const fCtx = finalCanvas.getContext('2d');
+            
+            fCtx.filter = `brightness(${sBright.value}%) contrast(${sContrast.value}%)`;
+            fCtx.drawImage(canvas, 0, 0);
+
+            let resultCanvas = finalCanvas;
+            if (sSharp.value > 0) {
+                resultCanvas = applySharpen(finalCanvas, sSharp.value / 100);
+            }
+
+            const count = document.getElementById('counter').value;
+            const prefix = document.getElementById('prefix').value;
+            const baseName = `${prefix}${count}`;
+
+            const blobImg = await new Promise(res => resultCanvas.toBlob(res, 'image/png'));
+            try {
+                const fileImg = await dirHandle.getFileHandle(`${baseName}.png`, { create: true });
+                const writeImg = await fileImg.createWritable();
+                await writeImg.write(blobImg); 
+                await writeImg.close();
+
+                const tagVal = document.getElementById('tags').value;
+                if(tagVal.trim().length > 0) {
+                    const fileTxt = await dirHandle.getFileHandle(`${baseName}.txt`, { create: true });
+                    const writeTxt = await fileTxt.createWritable();
+                    await writeTxt.write(tagVal); 
+                    await writeTxt.close();
+                }
+
+                document.getElementById('counter').value = parseInt(count) + 1;
+                idx++; 
+                init();
+
+            } catch (err) {
+                console.error(err);
+                alert("Save error. Check folder permissions or close the target file.");
+            }
+        }
+
+        function applySharpen(c, s) {
+            const w = c.width, h = c.height;
+            const outC = document.createElement('canvas');
+            outC.width = w; outC.height = h;
+            const ctx = outC.getContext('2d');
+            ctx.drawImage(c, 0, 0);
+            
+            const imgData = ctx.getImageData(0, 0, w, h);
+            const pix = imgData.data;
+            const res = ctx.createImageData(w, h);
+            const dst = res.data;
+
+            const e = -s;
+            const m = 1 + 4 * s;
+
+            for (let y = 1; y < h - 1; y++) {
+                for (let x = 1; x < w - 1; x++) {
+                    for (let i = 0; i < 3; i++) { // RGB
+                        let p = (y * w + x) * 4 + i;
+                        dst[p] = 
+                            pix[((y-1)*w+x)*4+i]*e +
+                            pix[(y*w+(x-1))*4+i]*e +
+                            pix[p]*m +
+                            pix[(y*w+(x+1))*4+i]*e +
+                            pix[((y+1)*w+x)*4+i]*e;
+                    }
+                    dst[(y * w + x) * 4 + 3] = 255;
+                }
+            }
+            ctx.putImageData(res, 0, 0);
+            return outC;
+        }
+
+        saveBtn.onclick = doCrop;
+        window.onkeydown = (e) => { 
+            if(e.code === 'Space' && !saveBtn.disabled) { 
+                e.preventDefault(); 
+                doCrop(); 
+            }
+        };
+    </script>
+</body>
+</html>
+<!-- Powered by ChatGPT -->

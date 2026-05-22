@@ -106,7 +106,7 @@ def get_tags():
         return jsonify({"status": "error", "tags": f"Error: {str(e)}"})
 
 if __name__ == "__main__":
-    print("--- PALADIN READY ---")
+    print("--- ANNO DATASET MAKER READY ---")
     app.run(host="0.0.0.0", port=5000, debug=False)
 
 # Powered by ChatGPT
