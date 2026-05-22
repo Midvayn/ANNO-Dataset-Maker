@@ -2,6 +2,12 @@
 
 ANNO Dataset Maker is a small local web tool for preparing AI image datasets. It helps crop images, apply quick visual adjustments, generate WD14 tags, preview saliency heatmaps, and save paired `.png` + `.txt` files for training datasets.
 
+## Screenshots
+
+![ANNO Dataset Maker UI](screen1.png)
+
+![Heatmap preview](screen2.png)
+
 ## Features
 
 - Batch image loading
