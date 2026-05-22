@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ANNO Dataset Maker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <style>
+        body { background: #121212; color: #e0e0e0; font-family: 'Segoe UI', monospace; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        
+        #side { 
+            width: 340px; padding: 15px; border-right: 1px solid #333; 
+            display: flex; flex-direction: column; gap: 8px; 
+            background: #1e1e1e; z-index: 20; overflow-y: auto; 
+            box-shadow: 4px 0 15px rgba(0,0,0,0.3);
+        }
+        
+        #view { flex: 1; background: #080808; display: flex; align-items: center; justify-content: center; position: relative; }
+        img { max-width: 100%; display: block; }
+        
+        
+        .btn { 
+            border: none; padding: 0; height: 36px; cursor: pointer; font-weight: bold; border-radius: 4px; width: 100%; 
+            text-transform: uppercase; font-size: 11px; display: flex; justify-content: center; align-items: center; 
+            transition: 0.2s; letter-spacing: 1px;
+        }
+        .btn-blue { background: #1565c0; color: white; }
+        .btn-green { background: #2e7d32; color: white; height: 50px; font-size: 13px; margin-top: 10px; }
+        .btn-purple { background: #7b1fa2; color: white; margin-top: 5px; } 
+        .btn:disabled { background: #333; color: #555; cursor: not-allowed; }
+        .btn:hover { filter: brightness(1.2); }
+        
+        #predatorBtn { background: #ff9800; color: #000; margin-top: 5px; }
+        #predatorBtn.active { background: #e65100; color: white; box-shadow: 0 0 10px #e65100; border: 1px solid #ffcc80; }
+
+        
+        input[type="text"], input[type="number"], textarea { 
+            background: #2c2c2c; color: #fff; border: 1px solid #444; padding: 8px; 
+            width: 100%; box-sizing: border-box; border-radius: 4px; font-family: monospace;
+        }
+        
+        
+        .slider-row { 
+            background: #252525; padding: 10px; border-radius: 6px; border: 1px solid #333; 
+            font-size: 11px; margin-bottom: 4px; display: flex; flex-direction: column; gap: 5px;
+        }
+        .slider-header { display: flex; justify-content: space-between; align-items: center; color: #aaa; }
+        
+        
+        .val-box {
+            background: #111; color: #2ecc71; padding: 2px 6px; border-radius: 3px; 
+            border: 1px solid #333; min-width: 30px; text-align: center; font-weight: bold;
+        }
+
+        input[type="range"] { width: 100%; cursor: pointer; accent-color: #9c27b0; margin: 0; }
+        
+        .flex-row { display: flex; gap: 5px; align-items: center; }
+        
+        
+        .cropper-view-box { outline: 2px solid #39f; }
+        .cropper-view-box img { 
+            filter: url(#svg-sharpen) var(--br) var(--ct) var(--sat); 
+            transition: filter 0.1s;
+        }
+        .predator-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; mix-blend-mode: screen; transition: opacity 0.3s; z-index: 100; }
+    </style>
+</head>
+<body>
+    <svg width="0" height="0" style="position:absolute"><filter id="svg-sharpen"><feConvolveMatrix id="matrix" order="3" preserveAlpha="true" kernelMatrix="0 0 0 0 1 0 0 0 0" /></filter></svg>
+
+    <div id="side">
+        <h3 style="color:#2ecc71; margin:0 0 10px 0; letter-spacing:1px;">ANNO Dataset Maker 🎨</h3>
+        
+        <label class="btn btn-blue">1. SELECT FILES <input type="file" id="loader" multiple accept="image/*" style="display:none"></label>
+        <button id="folderBtn" class="btn btn-blue">2. SELECT FOLDER</button>
+        <div id="folderDisplay" style="font-size:10px; color:#2ecc71; margin-bottom:5px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">...</div>
+
+        <div class="flex-row"><input type="text" id="prefix" placeholder="img_"><input type="number" id="counter" value="1" style="width:60px"></div>
+        <div class="flex-row"><input type="number" id="tw" value="512"><input type="number" id="th" value="512"></div>
+
+        <hr style="border:0; border-top:1px solid #444; width:100%; margin: 8px 0;">
+        
+        <button id="predatorBtn" class="btn" onclick="togglePredator()" disabled>👁️ PREDATOR VIEW</button>
+        
+        <div class="slider-row">
+            <div class="slider-header"><span>Tag sensitivity</span> <span class="val-box" id="v-tr">0.35</span></div>
+            <input type="range" id="tagThreshold" min="1" max="100" value="35" style="accent-color: #7b1fa2;">
+        </div>
+        <button id="tagBtn" class="btn btn-purple" onclick="generateTags()" disabled>📝 GENERATE TAGS</button>
+
+        <hr style="border:0; border-top:1px solid #444; width:100%; margin: 8px 0;">
+
+        <div class="slider-row">
+            <div class="slider-header"><span>Sharpen</span> <span class="val-box" id="v-sh">0</span></div>
+            <input type="range" id="sharp" max="100" value="0" style="accent-color: #00bcd4;">
+        </div>
+
+        <div class="slider-row">
+            <div class="slider-header"><span>Brightness</span> <span class="val-box" id="v-br">100</span></div>
+            <input type="range" id="bright" min="50" max="150" value="100" style="accent-color: #ffeb3b;">
+        </div>
+
+        <div class="slider-row">
+            <div class="slider-header"><span>Contrast</span> <span class="val-box" id="v-ct">100</span></div>
+            <input type="range" id="contrast" min="50" max="150" value="100" style="accent-color: #ff9800;">
+        </div>
+
+        <div class="slider-row">
+            <div class="slider-header"><span>Saturation</span> <span class="val-box" id="v-sat">100</span></div>
+            <input type="range" id="sat" min="0" max="200" value="100" style="accent-color: #e91e63;">
+        </div>
+
+        <textarea id="tags" placeholder="Tags..." style="height:60px; margin-top:5px; font-size:11px;"></textarea>
+        <button id="saveBtn" class="btn btn-green" disabled>SAVE (Space)</button>
+        <div id="stat" style="font-size:10px; color:#666; text-align:center; margin-top:5px">Ready to serve</div>
+    </div>
+
+    <div id="view">
+        <img id="target">
+        <div id="heatmapContainer" style="position:absolute; top:0; left:0; width:0; height:0; overflow:hidden; pointer-events:none;">
+            <img id="heatmapOverlay" class="predator-overlay">
+        </div>
+    </div>
+
+    <script>
+        let files=[], idx=0, cropper, dirHandle=null;
+        const loader=document.getElementById('loader'), target=document.getElementById('target');
+        const saveBtn=document.getElementById('saveBtn'), predatorBtn=document.getElementById('predatorBtn'), tagBtn=document.getElementById('tagBtn');
+        const heatmapOverlay=document.getElementById('heatmapOverlay'), heatmapContainer=document.getElementById('heatmapContainer');
+        const tagThreshold=document.getElementById('tagThreshold');
+
+        tagThreshold.oninput=()=>document.getElementById('v-tr').innerText=tagThreshold.value/100;
+        
+        const sSharp=document.getElementById('sharp');
+        const sBright=document.getElementById('bright');
+        const sContrast=document.getElementById('contrast');
+        const sSat=document.getElementById('sat');
+        
+        const matrix=document.getElementById('matrix'), view=document.getElementById('view');
+        
+        document.getElementById('folderBtn').onclick=async()=>{ try{dirHandle=await window.showDirectoryPicker(); document.getElementById('folderDisplay').innerText=dirHandle.name; if(files.length) saveBtn.disabled=false;}catch(e){} };
+
+        function updateFilters() {
+            const sh=sSharp.value, br=sBright.value, ct=sContrast.value, sat=sSat.value;
+            
+            document.getElementById('v-sh').innerText=sh; 
+            document.getElementById('v-br').innerText=br; 
+            document.getElementById('v-ct').innerText=ct;
+            document.getElementById('v-sat').innerText=sat;
+
+            view.style.setProperty('--br', `brightness(${br}%)`); 
+            view.style.setProperty('--ct', `contrast(${ct}%)`);
+            view.style.setProperty('--sat', `saturate(${sat}%)`);
+            
+            const s=sh/100, c=1+4*s, e=-s;
+            matrix.setAttribute("kernelMatrix", `0 ${e} 0 ${e} ${c} ${e} 0 ${e} 0`);
+        }
+        
+        [sSharp, sBright, sContrast, sSat].forEach(el=>el.oninput=updateFilters);
+
+        loader.onchange=(e)=>{ files=Array.from(e.target.files); idx=0; if(files.length) init(); };
+
+        function init() {
+            if(idx>=files.length) { document.getElementById('stat').innerText="ALL DONE!"; return; }
+            document.getElementById('stat').innerText=`${idx+1} / ${files.length}`;
+            heatmapOverlay.style.opacity=0; predatorBtn.classList.remove('active');
+            document.getElementById('tags').value = ""; 
+            
+            const reader = new FileReader();
+            reader.onload=(e)=>{
+                target.src=e.target.result;
+                if(cropper) cropper.destroy();
+                cropper = new Cropper(target, {
+                    aspectRatio: document.getElementById('tw').value/document.getElementById('th').value,
+                    viewMode: 1, autoCropArea: 0.9,
+                    ready() { updateFilters(); predatorBtn.disabled=false; tagBtn.disabled=false; syncHeatmap(); },
+                    crop() { syncHeatmap(); }
+                });
+            };
+            reader.readAsDataURL(files[idx]);
+        }
+
+        function syncHeatmap() {
+            const d=cropper.getCanvasData();
+            heatmapContainer.style.top=d.top+"px"; heatmapContainer.style.left=d.left+"px";
+            heatmapContainer.style.width=d.width+"px"; heatmapContainer.style.height=d.height+"px";
+        }
+
+        async function togglePredator() {
+            if(predatorBtn.classList.contains('active')) { predatorBtn.classList.remove('active'); heatmapOverlay.style.opacity=0; return; }
+            predatorBtn.disabled=true;
+            cropper.getCroppedCanvas().toBlob(async(blob)=>{
+                const fd=new FormData(); fd.append('image', blob);
+                try {
+                    const resp=await fetch('/analyze_heatmap', {method:'POST', body:fd}); const data=await resp.json();
+                    if(data.status==='ok') {
+                        heatmapOverlay.src=data.heatmap;
+                        heatmapOverlay.onload=()=>{
+                            heatmapOverlay.style.opacity=0.7; predatorBtn.classList.add('active'); predatorBtn.disabled=false;
+                        };
+                    }
+                } catch(e) { alert(e); predatorBtn.disabled=false; }
+            });
+        }
+
+        async function generateTags() {
+            tagBtn.disabled=true; tagBtn.innerText="WORKING...";
+            cropper.getCroppedCanvas().toBlob(async(blob)=>{
+                const fd=new FormData(); fd.append('image', blob); 
+                fd.append('threshold', tagThreshold.value / 100);
+                try {
+                    const resp=await fetch('/get_tags', {method:'POST', body:fd}); const data=await resp.json();
+                    if(data.status==='ok') { document.getElementById('tags').value = data.tags; } 
+                    else { document.getElementById('tags').value = "Error: " + data.tags; }
+                } catch(e) { alert(e); }
+                tagBtn.disabled=false; tagBtn.innerText="📝 GENERATE TAGS";
+            });
+        }
+
+        async function doCrop() {
+            if(!dirHandle) { alert("SELECT A FOLDER FIRST!"); return; }
+            const tw=parseInt(document.getElementById('tw').value), th=parseInt(document.getElementById('th').value);
+            let canvas=cropper.getCroppedCanvas({width:tw, height:th, imageSmoothingQuality:'high'});
+            const fc=document.createElement('canvas'); fc.width=tw; fc.height=th; const ctx=fc.getContext('2d');
+            
+            ctx.filter=`brightness(${sBright.value}%) contrast(${sContrast.value}%) saturate(${sSat.value}%)`; 
+            ctx.drawImage(canvas,0,0);
+            
+            if(sSharp.value>0) {
+                const s=sSharp.value/100, w=tw, h=th, imgData=ctx.getImageData(0,0,w,h), px=imgData.data, res=ctx.createImageData(w,h), dst=res.data, e=-s, m=1+4*s;
+                for(let y=1; y<h-1; y++) for(let x=1; x<w-1; x++) for(let i=0; i<3; i++) {
+                    let p=(y*w+x)*4+i; dst[p]=px[((y-1)*w+x)*4+i]*e + px[(y*w+(x-1))*4+i]*e + px[p]*m + px[(y*w+(x+1))*4+i]*e + px[((y+1)*w+x)*4+i]*e;
+                }
+                for(let i=0; i<px.length; i+=4) dst[i+3]=255; 
+                ctx.putImageData(res,0,0);
+            }
+
+            const blob=await new Promise(r=>fc.toBlob(r,'image/png'));
+            const name=`${document.getElementById('prefix').value}${document.getElementById('counter').value}`;
+            const fh=await dirHandle.getFileHandle(name+'.png', {create:true}); const w=await fh.createWritable(); await w.write(blob); await w.close();
+            const tags=document.getElementById('tags').value;
+            if(tags.trim()) { const th_txt=await dirHandle.getFileHandle(name+'.txt', {create:true}); const wt=await th_txt.createWritable(); await wt.write(tags); await wt.close(); }
+            document.getElementById('counter').value++; idx++; init();
+        }
+        saveBtn.onclick=doCrop; window.onkeydown=(e)=>{if(e.code==='Space'&&!saveBtn.disabled){e.preventDefault();doCrop();}};
+    </script>
+</body>
+</html>
+<!-- Powered by ChatGPT -->
